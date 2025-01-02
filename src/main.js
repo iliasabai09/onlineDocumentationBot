@@ -1,17 +1,43 @@
-import express from 'express';
-import cors from 'cors';
+import {Telegraf} from "telegraf";
+import dotenv from "dotenv";
+import {getMsgDocument, saveDocument} from "./routes/document.route.js";
+import {MessageRoutes} from "./routes/index.js";
 
-import config from './config.js';
-import productRoute from './routes/document.route.js';
+dotenv.config();
 
-const app = express();
+const {BOT_TOKEN} = process.env
 
-app.use(cors());
-app.use(express.json());
+// Создаем экземпляр бота
+const bot = new Telegraf(BOT_TOKEN);
 
-//routes
-app.use('/api', productRoute);
+// Добавляем команды и обработчики
+// Ответ на команду /start
+bot.start((ctx) => {
+    ctx.reply('Привет! Я бот и могу работать в этой группе.');
+});
 
-app.listen(config.port, () =>
-    console.log(`Server is live @ ${config.hostUrl}`),
-);
+// Ответ на команду /help
+bot.help((ctx) => {
+    ctx.reply('Запарил!');
+});
+
+
+bot.on('message', async (ctx) => {
+    const MSG_ROUTES = new MessageRoutes(ctx);
+    if (MSG_ROUTES.saveMsg()) return saveDocument(ctx)
+    if (MSG_ROUTES.getMsg()) return getMsgDocument(ctx)
+})
+
+// Ответ на упоминание бота
+bot.mention('botusername', (ctx) => {
+    ctx.reply('Вы упомянули меня!');
+});
+
+// Запускаем бота
+bot.launch().then(() => {
+    console.log('Бот успешно запущен!');
+});
+
+// Обработка SIGINT и SIGTERM для корректного завершения
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
